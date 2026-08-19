@@ -1,4 +1,4 @@
-name: ChatGPT Whisper runtime fetch
+name: ChatGPT Whisper tiny model fetch
 
 on:
   pull_request:
@@ -8,41 +8,25 @@ permissions:
   contents: read
 
 env:
-  MODEL_URL: https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en-q5_1.bin?download=true
-  MODEL_SHA256: 4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f
+  MODEL_URL: https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en-q5_1.bin?download=true
+  MODEL_SHA256: c77c5766f1cef09b6b7d47f21b546cbddd4157886b3b5d6d4f709e91e66c7c2b
 
 jobs:
-  fetch-runtime:
+  fetch-model:
     if: github.head_ref == 'chatgpt/whisper-model-fetch-20260819'
     runs-on: ubuntu-latest
     steps:
-      - name: Download and verify public Whisper model
+      - name: Download and verify public Whisper tiny.en model
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --location --retry 4 --output ggml-base.en-q5_1.bin "$MODEL_URL"
-          echo "$MODEL_SHA256  ggml-base.en-q5_1.bin" | sha256sum --check --strict
-      - name: Build whisper.cpp CLI and collect runtime libraries
-        shell: bash
-        run: |
-          set -euo pipefail
-          git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git
-          cmake -S whisper.cpp -B whisper.cpp/build -DCMAKE_BUILD_TYPE=Release -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
-          cmake --build whisper.cpp/build --config Release -j2
-          mkdir -p runtime/lib
-          cp whisper.cpp/build/bin/whisper-cli runtime/whisper-cli
-          chmod +x runtime/whisper-cli
-          find whisper.cpp/build -type f \( -name 'libwhisper.so*' -o -name 'libggml*.so*' \) -exec cp -L {} runtime/lib/ \;
-          cp ggml-base.en-q5_1.bin runtime/
-          LD_LIBRARY_PATH="$PWD/runtime/lib" runtime/whisper-cli --help >/dev/null
-          echo 'Collected:'
-          find runtime -maxdepth 2 -type f -printf '%p %s bytes\n'
-          echo 'Linkage:'
-          LD_LIBRARY_PATH="$PWD/runtime/lib" ldd runtime/whisper-cli
-      - name: Upload runtime artifact
+          curl --fail --location --retry 4 --output ggml-tiny.en-q5_1.bin "$MODEL_URL"
+          echo "$MODEL_SHA256  ggml-tiny.en-q5_1.bin" | sha256sum --check --strict
+          ls -lh ggml-tiny.en-q5_1.bin
+      - name: Upload model artifact
         uses: actions/upload-artifact@v4
         with:
-          name: whisper-base-en-runtime-complete
-          path: runtime/
+          name: whisper-ggml-tiny-en-q5_1
+          path: ggml-tiny.en-q5_1.bin
           if-no-files-found: error
           retention-days: 1
