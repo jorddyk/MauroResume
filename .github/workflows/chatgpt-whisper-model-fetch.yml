@@ -1,10 +1,8 @@
 name: ChatGPT Whisper model fetch
 
 on:
-  push:
+  pull_request:
     branches: [main]
-    paths:
-      - .github/workflows/chatgpt-whisper-model-fetch.yml
 
 permissions:
   contents: read
@@ -15,6 +13,7 @@ env:
 
 jobs:
   fetch-model:
+    if: github.head_ref == 'chatgpt/whisper-model-fetch-20260819'
     runs-on: ubuntu-latest
     steps:
       - name: Download and verify public Whisper model
