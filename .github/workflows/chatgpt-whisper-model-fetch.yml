@@ -22,23 +22,27 @@ jobs:
           set -euo pipefail
           curl --fail --location --retry 4 --output ggml-base.en-q5_1.bin "$MODEL_URL"
           echo "$MODEL_SHA256  ggml-base.en-q5_1.bin" | sha256sum --check --strict
-      - name: Build whisper.cpp CLI
+      - name: Build whisper.cpp CLI and collect runtime libraries
         shell: bash
         run: |
           set -euo pipefail
           git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git
           cmake -S whisper.cpp -B whisper.cpp/build -DCMAKE_BUILD_TYPE=Release -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
           cmake --build whisper.cpp/build --config Release -j2
-          cp whisper.cpp/build/bin/whisper-cli ./whisper-cli
-          chmod +x ./whisper-cli
-          ./whisper-cli --help >/dev/null
-          ls -lh ggml-base.en-q5_1.bin whisper-cli
+          mkdir -p runtime/lib
+          cp whisper.cpp/build/bin/whisper-cli runtime/whisper-cli
+          chmod +x runtime/whisper-cli
+          find whisper.cpp/build -type f \( -name 'libwhisper.so*' -o -name 'libggml*.so*' \) -exec cp -L {} runtime/lib/ \;
+          cp ggml-base.en-q5_1.bin runtime/
+          LD_LIBRARY_PATH="$PWD/runtime/lib" runtime/whisper-cli --help >/dev/null
+          echo 'Collected:'
+          find runtime -maxdepth 2 -type f -printf '%p %s bytes\n'
+          echo 'Linkage:'
+          LD_LIBRARY_PATH="$PWD/runtime/lib" ldd runtime/whisper-cli
       - name: Upload runtime artifact
         uses: actions/upload-artifact@v4
         with:
-          name: whisper-base-en-runtime
-          path: |
-            ggml-base.en-q5_1.bin
-            whisper-cli
+          name: whisper-base-en-runtime-complete
+          path: runtime/
           if-no-files-found: error
           retention-days: 1
