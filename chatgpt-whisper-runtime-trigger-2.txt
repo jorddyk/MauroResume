@@ -1,0 +1,1 @@
+temporary Whisper runtime library rebuild trigger — 2026-08-19
