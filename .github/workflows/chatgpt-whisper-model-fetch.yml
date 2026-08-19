@@ -1,4 +1,4 @@
-name: ChatGPT Whisper model fetch
+name: ChatGPT Whisper runtime fetch
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ env:
   MODEL_SHA256: 4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f
 
 jobs:
-  fetch-model:
+  fetch-runtime:
     if: github.head_ref == 'chatgpt/whisper-model-fetch-20260819'
     runs-on: ubuntu-latest
     steps:
@@ -22,11 +22,23 @@ jobs:
           set -euo pipefail
           curl --fail --location --retry 4 --output ggml-base.en-q5_1.bin "$MODEL_URL"
           echo "$MODEL_SHA256  ggml-base.en-q5_1.bin" | sha256sum --check --strict
-          ls -lh ggml-base.en-q5_1.bin
-      - name: Upload model artifact
+      - name: Build whisper.cpp CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git
+          cmake -S whisper.cpp -B whisper.cpp/build -DCMAKE_BUILD_TYPE=Release -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
+          cmake --build whisper.cpp/build --config Release -j2
+          cp whisper.cpp/build/bin/whisper-cli ./whisper-cli
+          chmod +x ./whisper-cli
+          ./whisper-cli --help >/dev/null
+          ls -lh ggml-base.en-q5_1.bin whisper-cli
+      - name: Upload runtime artifact
         uses: actions/upload-artifact@v4
         with:
-          name: whisper-ggml-base-en-q5_1
-          path: ggml-base.en-q5_1.bin
+          name: whisper-base-en-runtime
+          path: |
+            ggml-base.en-q5_1.bin
+            whisper-cli
           if-no-files-found: error
           retention-days: 1
